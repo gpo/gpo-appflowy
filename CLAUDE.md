@@ -12,6 +12,9 @@ The full plan lives in [`docs/`](./docs/README.md). Read the [roadmap](./docs/ro
 
 ```
 versions.yaml        # pinned upstream release tags (appflowy_cloud, appflowy_flutter)
+upstream/
+  appflowy-cloud/    # AppFlowy-IO/AppFlowy-Cloud, vendored at pinned release tag
+  appflowy-flutter/  # AppFlowy-IO/AppFlowy (client), vendored at pinned release tag
 kubernetes/
   base/              # env-agnostic Kustomize bases, one dir per component
   overlays/          # prod and stage; image tags + env-specific patches
@@ -33,7 +36,7 @@ The five built-from-source images: `appflowy-cloud`, `appflowy-worker`, `appflow
 
 ## Conventions
 
-- **Version pins are the source of truth.** Upstream release versions live in `versions.yaml`. To pin a different release, update that file and let the pipeline rebuild. Do not commit upstream source into the repo.
+- **Subtrees are pinned to release tags, not `main`.** `upstream/` is vendored at the tag recorded in `versions.yaml`. Never hand-edit `upstream/` source; advances happen only via `git subtree pull --squash <new-tag>` in the sync workflow. `versions.yaml` is the human-readable source of truth for which release is active.
 - **One PR per spec.** Follow the breakdown in [`docs/roadmap.md`](./docs/roadmap.md); keep the manifest track as separate PRs, not one mega-PR.
 - **No secrets in git.** All sensitive values flow through the `appflowy-secrets` Secret or External Secrets Operator. Never commit rendered manifests containing secrets.
 - **Validate before review:** `kustomize build` plus `kubeconform` for manifest changes, `actionlint` for workflow changes.

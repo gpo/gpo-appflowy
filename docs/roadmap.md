@@ -7,7 +7,7 @@ This roadmap breaks the [AppFlowy AGPL build design](./design/appflowy-agpl-buil
 | PR | Title | Spec | Depends on | Estimate |
 |---|---|---|---|---|
 | 00 | Docs and orchestration foundation | *(this branch)* | — | done |
-| 01 | Repo scaffold and version pins | [spec](./prs/pr-01-repo-scaffold-and-subtrees.md) | 00 | 0.5d |
+| 01 | Repo scaffold and upstream subtrees | [spec](./prs/pr-01-repo-scaffold-and-subtrees.md) | 00 | 0.5d |
 | 02 | Kubernetes base: data layer (CNPG, Redis) | [spec](./prs/pr-02-k8s-data-layer.md) | 01 | 0.5d |
 | 03 | Kubernetes base: GoTrue auth | [spec](./prs/pr-03-k8s-gotrue.md) | 02 | 0.5d |
 | 04 | Kubernetes base: AppFlowy services | [spec](./prs/pr-04-k8s-appflowy-services.md) | 02, 03 | 1d |

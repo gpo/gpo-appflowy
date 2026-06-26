@@ -1,4 +1,4 @@
-# PR 01: Repository Scaffold and Version Pins
+# PR 01: Repository Scaffold and Upstream Subtrees
 
 **Depends on:** PR 00 (docs, this branch)
 **Blocks:** PR 02 through PR 08
@@ -6,22 +6,21 @@
 
 ## Goal
 
-Establish the monorepo skeleton and pin the two upstream release versions so every
-later PR has stable paths to build from and a clear source of truth for what
-upstream revision is in use.
+Establish the monorepo skeleton, vendor the two upstream sources at their latest
+non-RC release tags via `git subtree --squash`, and record the pinned versions in
+`versions.yaml` as the human-readable source of truth.
 
-## Why not git subtree
-
-The upstream repos are large (~1 GB each) and we only need specific release
-snapshots, not rolling main. A `versions.yaml` file pins the two release tags; the
-build workflow shallow-clones those tags at build time. This keeps the repo
-lightweight, avoids subtree merge complexity, and makes the release pin explicit and
-diff-friendly.
+Vendoring at a specific release tag (rather than tracking `main`) means:
+- Builds are reproducible regardless of what upstream does after the tag.
+- The sync workflow advances the pin deliberately, one release at a time.
+- The repo is large (~1–2 GB) but self-contained.
 
 ## Scope
 
 ```
-versions.yaml                 # pinned upstream release tags
+versions.yaml                 # pinned upstream release tags (appflowy_cloud, appflowy_flutter)
+upstream/appflowy-cloud/      # git subtree snapshot at pinned release tag
+upstream/appflowy-flutter/    # git subtree snapshot at pinned release tag
 kubernetes/base/              # empty .gitkeep placeholders for each component
 kubernetes/overlays/          # placeholders for prod, stage
 kubernetes/argocd/            # placeholder
@@ -35,7 +34,17 @@ kubernetes/argocd/            # placeholder
    - `https://github.com/AppFlowy-IO/AppFlowy-Cloud/releases`
    - `https://github.com/AppFlowy-IO/AppFlowy/releases`
 
-2. Create `versions.yaml` at the repo root:
+2. Add the two subtrees, squash-merged at those tags:
+
+   ```bash
+   git subtree add --prefix upstream/appflowy-cloud \
+     https://github.com/AppFlowy-IO/AppFlowy-Cloud.git <tag> --squash
+
+   git subtree add --prefix upstream/appflowy-flutter \
+     https://github.com/AppFlowy-IO/AppFlowy.git <tag> --squash
+   ```
+
+3. Create `versions.yaml` at the repo root, recording the pinned tags:
 
    ```yaml
    # Pinned upstream release versions. Updated weekly by sync-upstream.yml.
@@ -44,19 +53,21 @@ kubernetes/argocd/            # placeholder
    appflowy_flutter: vX.Y.Z
    ```
 
-3. Create the `kubernetes/` directory tree with `.gitkeep` files matching the layout
+4. Create the `kubernetes/` directory tree with `.gitkeep` files matching the layout
    in [02-architecture.md](../design/02-architecture.md):
    - `kubernetes/base/{appflowy-cloud,appflowy-worker,appflowy-search,admin-frontend,appflowy-web,gotrue,redis,cnpg,gateway}/.gitkeep`
    - `kubernetes/overlays/{prod,stage}/.gitkeep`
    - `kubernetes/argocd/.gitkeep`
 
-4. Add `.gitignore` covering: kustomize build output (`/rendered/`, `*.rendered.yaml`),
-   editor files (`.idea/`, `.vscode/`, `*.swp`), and rendered secrets (`*secret*.yaml`
-   not in `base/` or `overlays/`).
+5. Add `.gitignore` covering: kustomize build output (`/rendered/`, `*.rendered.yaml`),
+   editor files (`.idea/`, `.vscode/`, `*.swp`), and rendered secrets.
 
 ## Acceptance Criteria
 
-- `versions.yaml` exists with non-RC release tags for both upstream repos.
+- `upstream/appflowy-cloud` and `upstream/appflowy-flutter` are present with their
+  full source trees, vendored at non-RC release tags.
+- `versions.yaml` records the same tags used for the subtree adds.
+- The subtree commits record the upstream tag in their commit message.
 - Both tags are from matching release cycles (same semver version, or explicitly noted
   if they differ); record this in the PR description.
 - `kubernetes/` tree matches the documented layout.
@@ -66,6 +77,9 @@ kubernetes/argocd/            # placeholder
 
 - The tags pinned here become the baseline for carried verification #3 (server/client
   compatibility). Record both version tags in the PR description.
+- Do not modify upstream source in this PR. Patches, if ever needed, belong in
+  dedicated PRs so subtree syncs stay clean.
 - `appflowy_flutter` is the desktop/mobile client; it does not produce a container
-  image. It is tracked here solely for the version-compatibility audit trail.
-- All five container images are built from `appflowy_cloud` only.
+  image. It is tracked for the version-compatibility audit trail and for any future
+  patches to the client build.
+- All five container images are built from `upstream/appflowy-cloud` only.
