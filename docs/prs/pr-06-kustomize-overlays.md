@@ -6,7 +6,7 @@
 
 ## Goal
 
-Provide `prod` and `stage` overlays that pull in the base, rewrite image names to the Artifact Registry path with a deployable SHA tag, and patch all environment-specific values.
+Provide `prod` and `stage` overlays that pull in the base, rewrite image names to the Artifact Registry path with the pinned upstream release version as the tag, and patch all environment-specific values.
 
 ## Scope
 
@@ -29,19 +29,19 @@ resources:
 images:
   - name: appflowy-cloud
     newName: northamerica-northeast2-docker.pkg.dev/gpo-eng-prod/gpo/appflowy-cloud
-    newTag: <SHA>   # rewritten by the deploy workflow
+    newTag: v0.0.0   # appflowy-cloud  (rewritten by deploy workflow)
   - name: appflowy-worker
     newName: northamerica-northeast2-docker.pkg.dev/gpo-eng-prod/gpo/appflowy-worker
-    newTag: <SHA>
+    newTag: v0.0.0   # appflowy-worker
   - name: appflowy-search
     newName: northamerica-northeast2-docker.pkg.dev/gpo-eng-prod/gpo/appflowy-search
-    newTag: <SHA>
+    newTag: v0.0.0   # appflowy-search
   - name: admin-frontend
     newName: northamerica-northeast2-docker.pkg.dev/gpo-eng-prod/gpo/admin-frontend
-    newTag: <SHA>
+    newTag: v0.0.0   # admin-frontend
   - name: appflowy-web
     newName: northamerica-northeast2-docker.pkg.dev/gpo-eng-prod/gpo/appflowy-web
-    newTag: <SHA>
+    newTag: v0.0.0   # appflowy-web
 patches:
   - path: gotrue-patch.yaml
   - path: appflowy-cloud-patch.yaml
@@ -60,11 +60,13 @@ patches:
 
 ## Deploy-workflow contract
 
-The deploy workflow ([PR 08](./pr-08-cd-deploy-and-argocd.md)) rewrites the five `newTag:` lines. Keep each `newTag` line individually addressable by the workflow's `sed` (a trailing `# <image-name>` marker comment is the agreed convention; keep base and overlay marker format identical across both overlays).
+The deploy workflow ([PR 08](./pr-08-cd-deploy-and-argocd.md)) rewrites the five `newTag:` lines to the `appflowy_cloud` version read from `versions.yaml`. Each `newTag` line carries a trailing `# <image-name>` marker comment so the workflow's `sed` can target it individually; this marker is a contract between the two PRs and must match byte-for-byte what the deploy workflow's pattern expects. Keep the marker format identical across both overlays.
+
+Validate the contract, do not just eyeball it: run the deploy workflow's exact `sed` against the committed overlays and confirm it rewrites all five `newTag:` lines (and nothing else) to the target version. A marker mismatch is a silent failure: `sed` rewrites nothing, the tags never advance, and Argo CD keeps deploying the old image with no error surfaced anywhere.
 
 ## Acceptance Criteria
 
 - `kustomize build kubernetes/overlays/prod` and `.../stage` both render fully and pass `kubeconform`.
 - Image names resolve to the correct per-environment registry path.
 - Every environment-specific value differs correctly between prod and stage.
-- The `newTag` marker format matches what the deploy workflow rewrites.
+- Each `newTag:` line carries its `# <image-name>` marker, and a dry-run of the deploy workflow's `sed` rewrites exactly those five lines (and nothing else) in both overlays.
