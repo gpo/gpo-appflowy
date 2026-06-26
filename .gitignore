@@ -1,0 +1,13 @@
+# Kustomize build output
+/rendered/
+*.rendered.yaml
+
+# Rendered secrets (never commit decrypted/rendered secret manifests)
+*.secret.yaml
+*-secret.rendered.yaml
+secrets.rendered.yaml
+
+# Editor files
+.idea/
+.vscode/
+*.swp

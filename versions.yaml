@@ -1,0 +1,4 @@
+# Pinned upstream release versions. Updated weekly by sync-upstream.yml.
+# Both versions should be from the same release cycle (see carried verification #3).
+appflowy_cloud: 0.9.64
+appflowy_flutter: 0.12.5
