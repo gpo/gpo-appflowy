@@ -4,16 +4,17 @@ Guidance for working in this repository.
 
 ## What This Repo Is
 
-`gpo-appflowy` self-hosts [AppFlowy](https://github.com/AppFlowy-IO/AppFlowy-Cloud) on GKE, built entirely from AGPL-3.0 source to avoid the closed commercial images (which impose a `max_users: 1` limit that does not exist in the open source). It is a monorepo holding vendored upstream source, Kubernetes manifests, and the CI/CD that builds images and drives GitOps deploys.
+`gpo-appflowy` self-hosts [AppFlowy](https://github.com/AppFlowy-IO/AppFlowy-Cloud) on GKE, built entirely from AGPL-3.0 source to avoid the closed commercial images (which impose a `max_users: 1` limit that does not exist in the open source). It is a monorepo holding Kubernetes manifests, version pins for the two upstream repos, and the CI/CD that builds images and drives GitOps deploys.
 
 The full plan lives in [`docs/`](./docs/README.md). Read the [roadmap](./docs/roadmap.md) before starting work; it breaks the design into per-PR task specs under [`docs/prs/`](./docs/prs/).
 
 ## Layout
 
 ```
-upstream/            # vendored AGPL source via git subtree (do not hand-edit)
-  appflowy-cloud/    # AppFlowy-IO/AppFlowy-Cloud
-  appflowy-flutter/  # AppFlowy-IO/AppFlowy (client)
+versions.yaml        # pinned upstream release tags (appflowy_cloud, appflowy_flutter)
+upstream/
+  appflowy-cloud/    # AppFlowy-IO/AppFlowy-Cloud, vendored at pinned release tag
+  appflowy-flutter/  # AppFlowy-IO/AppFlowy (client), vendored at pinned release tag
 kubernetes/
   base/              # env-agnostic Kustomize bases, one dir per component
   overlays/          # prod and stage; image tags + env-specific patches
@@ -26,16 +27,16 @@ docs/                # design (split + original) and per-PR task specs
 
 Weekly, in sequence (Sunday 07:00 UTC):
 
-1. `sync-upstream.yml` pulls upstream into the two subtrees and pushes to `main`.
-2. `build-images.yml` builds the five images and pushes them to Artifact Registry, tagged with the commit SHA.
-3. `deploy.yml` rewrites the `newTag:` lines in both overlays and pushes to `main`.
+1. `sync-upstream.yml` checks for new non-RC releases on both upstream repos and updates `versions.yaml` if newer tags are available, then pushes to `main`.
+2. `build-images.yml` shallow-clones the pinned release tags, builds the five images, and pushes them to Artifact Registry tagged with the upstream release version.
+3. `deploy.yml` rewrites the `newTag:` lines in both overlays (using the version from `versions.yaml`) and pushes to `main`.
 4. Argo CD (`selfHeal` + `prune`) reconciles both clusters from `kubernetes/overlays/{prod,stage}`.
 
 The five built-from-source images: `appflowy-cloud`, `appflowy-worker`, `appflowy-search`, `admin-frontend`, and `appflowy-web`. GoTrue uses the open upstream image. Postgres is CloudNativePG, Redis runs in-cluster, and object storage is GCS via the AWS S3 client and Workload Identity.
 
 ## Conventions
 
-- **Subtrees are read-only.** Never edit `upstream/` except in a dedicated, clearly labelled PR; ad hoc edits break `git subtree pull`. Record the upstream SHA in subtree sync commits.
+- **Subtrees are pinned to release tags, not `main`.** `upstream/` is vendored at the tag recorded in `versions.yaml`. Never hand-edit `upstream/` source; advances happen only via `git subtree pull --squash <new-tag>` in the sync workflow. `versions.yaml` is the human-readable source of truth for which release is active.
 - **One PR per spec.** Follow the breakdown in [`docs/roadmap.md`](./docs/roadmap.md); keep the manifest track as separate PRs, not one mega-PR.
 - **No secrets in git.** All sensitive values flow through the `appflowy-secrets` Secret or External Secrets Operator. Never commit rendered manifests containing secrets.
 - **Validate before review:** `kustomize build` plus `kubeconform` for manifest changes, `actionlint` for workflow changes.
