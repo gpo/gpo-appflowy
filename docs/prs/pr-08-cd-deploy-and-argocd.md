@@ -20,13 +20,13 @@ Plus a companion change in **`gpo-platform-configs`** (separate PR in that repo)
 
 ## deploy.yml
 
-- Trigger: `workflow_run` on completion of "Build and push AppFlowy images" plus `workflow_dispatch` with an optional `sha` input.
+- Trigger: `workflow_run` on completion of "Build and push AppFlowy images" plus `workflow_dispatch` with an optional `version` input.
 - Gate on success or manual dispatch.
-- Resolve the SHA from `inputs.sha || workflow_run.head_sha || github.sha`.
-- For each of the five images, `sed -i` the matching `newTag:` line in both overlays' `kustomization.yaml`.
+- Resolve the target version from `inputs.version` or, if absent, the `appflowy_cloud` value in `versions.yaml` (the same value the build workflow tagged the images with). The deploy keys off the upstream release version, not a commit SHA.
+- For each of the five images, `sed -i` the matching `newTag:` line (identified by its trailing `# <image-name>` marker) in both overlays' `kustomization.yaml`.
 - Commit (`--allow-empty`) and `git push origin main`.
 
-Full YAML: [original design doc](../design/appflowy-agpl-build-design.md#3-deploy-deployyml). The `sed` marker convention must match what [PR 06](./pr-06-kustomize-overlays.md) wrote.
+Full YAML: [original design doc](../design/appflowy-agpl-build-design.md#3-deploy-deployyml). The `sed` marker convention must match byte-for-byte what [PR 06](./pr-06-kustomize-overlays.md) wrote; a mismatch silently rewrites nothing and the tags never advance. Dry-run the `sed` against the committed overlays before merge.
 
 ## Argo CD Application (per environment)
 
@@ -53,6 +53,7 @@ spec:
 ## Acceptance Criteria
 
 - `actionlint` passes on deploy.yml.
+- A dry-run of the workflow's `sed` against the committed overlays rewrites exactly the five `newTag:` lines (and nothing else) in both, to the version from `versions.yaml`.
 - A `workflow_dispatch` run rewrites the five tags in both overlays and pushes a commit to `main`.
 - After the platform-configs PR merges, Argo CD shows the `appflowy` Application `Synced` and `Healthy` in both environments.
 - `selfHeal` and `prune` are enabled so drift is reconciled automatically.

@@ -77,6 +77,7 @@ Verify the registry and the SA role per [PR 09](./pr-09-prereqs-and-secrets.md) 
 ## Acceptance Criteria
 
 - `actionlint` passes on both workflows.
-- A manual `workflow_dispatch` of build-images produces five images tagged with the commit SHA in Artifact Registry.
+- All five Dockerfile paths and build contexts in the matrix are verified to exist in the vendored `upstream/appflowy-cloud` tree at the pinned tag; the matrix matches reality, not the spec's assumed paths.
+- A manual `workflow_dispatch` of build-images produces five images tagged with the upstream release version (from `versions.yaml`) in Artifact Registry.
 - The first cold `appflowy-cloud` build completes within the runner timeout (expect 20 to 40 min cold; raise `timeout-minutes` accordingly).
 - Per-image GHA cache scopes are set so one image's eviction does not invalidate others.
